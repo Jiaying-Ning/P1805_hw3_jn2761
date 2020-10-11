@@ -1,0 +1,214 @@
+---
+title: "P8105_hw3_jn2761"
+author: "jiaying Ning"
+date: "10/10/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggridges)
+
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+    fig.asp = .6,
+  out.width = "90%"
+
+)
+
+theme_set(theme_minimal()+theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_color_discrete = scale_color_viridis_d
+scale_fill_discrete =scale_fill_viridis_d
+```
+
+
+##problem2
+
+
+1. Load, tidy, and otherwise wrangle the data. Your final dataset should include all originally observed variables and values; have useful variable names; include a weekday vs weekend variable; and encode data with reasonable variable classes. Describe the resulting dataset (e.g. what variables exist, how many observations, etc).
+
+
+```{r load the data}
+CHF_df=
+   read_csv("./data/accel_data.csv")  %>%
+   janitor::clean_names() %>%
+  	rename(number_of_days = day_id, number_of_week = week)%>%
+  mutate(
+    weekday.weekend = ifelse(day == "Saturday" | day =="Sunday", "weekend", "weekday")) %>% #create a new column indicate whether it was recorded on weekday or weekend
+  relocate(weekday.weekend)#move the variable to front
+
+#Tidy data
+
+CHF_df_tidy = 
+  pivot_longer(
+    CHF_df,  #原数据
+    activity_1:activity_1440, #想更改的column
+    names_to = "minute",
+    names_prefix = "activity_",
+    values_to = "activity") 
+```
+
+In the resulting dataset, I have 50400 observation and 6 variables,the data contain a total of 35 days of observation, week range from first week to fifth week. The dataset contains variables 
+- weekday.weekend: variables that classify whether the observation is made on weekdays of weekend
+- number_of_days: variables that record the number of days that the observation has been going on
+- number-of-weeks:variables that record the number of weeks that the observation has been going on
+- day: variable specify on the specific days in which the observation is recorded
+- minute: the specific days in which the observation is recorded
+- activity: the activity counts for each minute of a 24-hour day starting at midnight.
+
+
+2.Traditional analyses of accelerometer data focus on the total activity over the day. Using your tidied dataset, aggregate accross minutes to create a total activity variable for each day, and create a table showing these totals. Are any trends apparent?
+
+```{r}
+
+CHF_df_tidy %>%
+  group_by(number_of_days) %>%
+ summarize(total_activity=sum(activity)) 
+
+```
+
+
+```{r}
+CHF_df_tidy %>%
+  group_by(number_of_days) %>%
+ summarize(total_activity=sum(activity)) %>% 
+ggplot(aes(x=number_of_days, y=total_activity)) +
+  geom_point() +
+  geom_line()
+```
+overall there does not seem to be a apparent trend. The participant seems to do well and stable at the begining, but started from about day20, the participant's performance started to become less stable.
+
+
+
+
+3. Accelerometer data allows the inspection activity over the course of the day. Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week. Describe in words any patterns or conclusions you can make based on this graph.
+
+```{r}
+
+CHF_df_tidy %>%
+  group_by(day) %>%
+ggplot(aes(x=number_of_days, y = activity,color=day)) +
+  geom_point(aes(size = activity),alpha=0.5) +
+  labs(
+    titles = "activity plot",
+    x = "days being observed",
+    y = "counts of activity"
+  ) +
+  scale_x_continuous(
+    breaks = c(0,7,14,21,28,35))
+```
+
+
+```{r}
+CHF_df_tidy %>%
+  group_by(day) %>%
+ggplot(aes(x=number_of_days, y = activity,color=weekday.weekend)) +
+  geom_point(aes(size = activity),alpha=0.5) +
+  labs(
+    titles = "activity plot",
+    x = "days being observed",
+    y = "counts of activity"
+  ) +
+  scale_x_continuous(
+    breaks = c(0,7,14,21,28,35))
+```
+
+
+
+overall, participants seems to be stablelly acvtive on Monday, and for each week, the number of activity seems to decrease as the days are appraoching weekend. Also the participants seem to be most active during the middle phrase of the observation period week 2 to week3.
+
+
+##problem3
+
+The goal is to do some exploration of this dataset. To that end, write a short description of the dataset, noting the size and structure of the data, describing some key variables, and indicating the extent to which missing data is an issue. Then, do or answer the following (commenting on the results of each):
+
+Do some data cleaning. Create separate variables for year, month, and day. Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. For snowfall, what are the most commonly observed values? Why?
+
+
+- For some reason I was not able download packages from p8105 github
+
+
+```{r}
+ny_noaa=
+   read_csv("./data/nynoaadat.csv")  %>%
+   janitor::clean_names() %>%
+   separate(date, c("year","month","day"), sep = "([-])") %>%
+mutate(
+    year = as.integer(year),
+    month = as.integer(month))
+```
+
+```{r}
+ny_noaa %>%
+  group_by(snow) %>%
+  summarize(n_obs = n())
+
+```
+
+The most common value for snow fall is 0 because snowfall only occurs during winter.
+
+
+Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
+
+```{r}
+ny_noaa %>%
+  group_by(year) %>%
+  summarize(n_obs = n())
+
+```
+
+
+```{r}
+tmax_Jan =
+ny_noaa %>%
+  group_by(id,year) %>%
+ filter(month == 01) %>%
+summarise(
+mean_tmax = mean(tmax, na.rm=TRUE))  %>%
+ggplot(aes(x=month, y=mean_tmax, color=id))+
+  geom_point()+
+  geom_line()
+
+tmax_Jul =
+ny_noaa %>%
+  group_by(id,year) %>%
+ filter(month == 07) %>%
+summarise(
+mean_tmax = mean(tmax, na.rm=TRUE))  %>%
+ggplot(aes(x=month, y=mean_tmax, color=id))+
+  geom_point()+
+  geom_line()
+
+```
+
+
+
+
+
+Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
+
+
+```{r}
+ny_noaa %>%
+  ggplot(aes(x=tmin,y=tmax)) +
+  geom_hex() 
+```
+```{r}
+  ny_noaa %>%
+  filter( 
+    0 < snow & snow < 100 ,
+          )%>%
+  ggplot(aes(x=month,y=snow)) +
+  geom_point(alpha=0.5) + 
+  facet_grid(. ~year)+
+  geom_smooth(se=FALSE)
+```
+
